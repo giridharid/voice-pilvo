@@ -327,13 +327,12 @@ async def plivo_answer(request: Request):
     audio_url = f"{AUDIO_BASE_URL}/audio/{lang}/01_greeting.wav"
     action_url = f"{APP_BASE_URL}/plivo/gather?call_id={call_id}&lang={lang}"
     
-    # Minimal test - just speak and wait for input
+    # Fixed: GetDigits (not GetInput/Input), action + numDigits only
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Speak>Hello. This is Fusion Finance. Your collection agent will visit you tomorrow.</Speak>
-    <Wait length="1"/>
-    <Speak>Press 1 to confirm. Press 2 to reschedule.</Speak>
-    <GetInput action="{action_url}" method="POST" input_type="dtmf" digit_end_timeout="10" num_digits="1"/>
+    <GetDigits action="{action_url}" numDigits="1">
+        <Speak>Hello. This is Fusion Finance. Your collection agent will visit you tomorrow. Press 1 to confirm. Press 2 to reschedule.</Speak>
+    </GetDigits>
     <Speak>We did not receive your input. Goodbye.</Speak>
     <Hangup/>
 </Response>"""
@@ -378,10 +377,9 @@ async def plivo_gather(request: Request):
         action_url = f"{APP_BASE_URL}/plivo/reason?call_id={call_id}&lang={lang}"
         xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Speak>Please tell us why you cannot meet tomorrow.</Speak>
-    <Wait length="1"/>
-    <Speak>Press 1 for travel. Press 2 for health. Press 3 for financial issues. Press 4 for work. Press 5 for family. Press 6 for agriculture.</Speak>
-    <GetInput action="{action_url}" method="POST" input_type="dtmf" digit_end_timeout="10" num_digits="1"/>
+    <GetDigits action="{action_url}" numDigits="1">
+        <Speak>Please tell us why you cannot meet tomorrow. Press 1 for travel. Press 2 for health. Press 3 for financial issues. Press 4 for work. Press 5 for family. Press 6 for agriculture.</Speak>
+    </GetDigits>
     <Speak>We did not receive your input. Goodbye.</Speak>
     <Hangup/>
 </Response>"""
@@ -394,8 +392,9 @@ async def plivo_gather(request: Request):
         action_url = f"{APP_BASE_URL}/plivo/gather?call_id={call_id}&lang={lang}"
         xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Speak>Sorry, we did not understand. Press 1 to confirm. Press 2 to reschedule.</Speak>
-    <GetInput action="{action_url}" method="POST" input_type="dtmf" digit_end_timeout="10" num_digits="1"/>
+    <GetDigits action="{action_url}" numDigits="1">
+        <Speak>Sorry, we did not understand. Press 1 to confirm. Press 2 to reschedule.</Speak>
+    </GetDigits>
     <Hangup/>
 </Response>"""
     
