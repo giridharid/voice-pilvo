@@ -21,6 +21,7 @@ from fastapi.responses import HTMLResponse, Response, JSONResponse
 from pydantic import BaseModel
 import uvicorn
 import plivo
+from plivo import plivoxml
 
 # IST timezone (UTC+5:30)
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -324,18 +325,17 @@ async def plivo_answer(request: Request):
         await add_transcript(call_id, "Agent", f"🔊 Playing greeting in {lang_name}: '{ro_name} will visit you tomorrow. Press 1 to confirm, 2 to reschedule.'")
         call["state"] = CallState.WAIT_AVAILABILITY
     
-    audio_url = f"{AUDIO_BASE_URL}/audio/{lang}/01_greeting.wav"
     action_url = f"{APP_BASE_URL}/plivo/gather?call_id={call_id}&lang={lang}"
     
-    # Fixed: GetDigits (not GetInput/Input), action + numDigits only
-    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
+    # SIMPLEST possible XML - exactly matching Plivo docs
+    xml = f'''<Response>
     <GetDigits action="{action_url}" numDigits="1">
-        <Speak>Hello. This is Fusion Finance. Your collection agent will visit you tomorrow. Press 1 to confirm. Press 2 to reschedule.</Speak>
+        <Speak>Hello. Press 1 to confirm. Press 2 to reschedule.</Speak>
     </GetDigits>
-    <Speak>We did not receive your input. Goodbye.</Speak>
-    <Hangup/>
-</Response>"""
+    <Speak>No input. Goodbye.</Speak>
+</Response>'''
+    
+    print(f"=== PLIVO XML ===\n{xml}")
     
     return Response(content=xml, media_type="application/xml")
 
@@ -362,11 +362,10 @@ async def plivo_gather(request: Request):
             active_calls[call_id]["state"] = CallState.COMPLETED
             active_calls[call_id]["outcome"] = "AVAILABLE"
         
-        xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Speak>Thank you for confirming. Your agent will visit you tomorrow. Goodbye.</Speak>
-    <Hangup/>
-</Response>"""
+        response = plivoxml.ResponseElement()
+        response.add(plivoxml.SpeakElement("Thank you for confirming. Your agent will visit you tomorrow. Goodbye."))
+        response.add(plivoxml.HangupElement())
+        xml = response.to_string()
         
     elif digits == "2":
         # Reschedule - ask reason
@@ -375,14 +374,15 @@ async def plivo_gather(request: Request):
             active_calls[call_id]["state"] = CallState.WAIT_REASON
         
         action_url = f"{APP_BASE_URL}/plivo/reason?call_id={call_id}&lang={lang}"
-        xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <GetDigits action="{action_url}" numDigits="1">
-        <Speak>Please tell us why you cannot meet tomorrow. Press 1 for travel. Press 2 for health. Press 3 for financial issues. Press 4 for work. Press 5 for family. Press 6 for agriculture.</Speak>
-    </GetDigits>
-    <Speak>We did not receive your input. Goodbye.</Speak>
-    <Hangup/>
-</Response>"""
+        response = plivoxml.ResponseElement()
+        response.add(
+            plivoxml.GetDigitsElement(action=action_url, method="POST", num_digits=1, timeout=10).add(
+                plivoxml.SpeakElement("Please tell us why you cannot meet tomorrow. Press 1 for travel. Press 2 for health. Press 3 for financial issues. Press 4 for work. Press 5 for family. Press 6 for agriculture.")
+            )
+        )
+        response.add(plivoxml.SpeakElement("We did not receive your input. Goodbye."))
+        response.add(plivoxml.HangupElement())
+        xml = response.to_string()
         
     else:
         # Unclear - repeat
@@ -390,14 +390,16 @@ async def plivo_gather(request: Request):
             await add_transcript(call_id, "Agent", "⚠️ UNCLEAR INPUT: No valid DTMF received, repeating prompt")
         
         action_url = f"{APP_BASE_URL}/plivo/gather?call_id={call_id}&lang={lang}"
-        xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <GetDigits action="{action_url}" numDigits="1">
-        <Speak>Sorry, we did not understand. Press 1 to confirm. Press 2 to reschedule.</Speak>
-    </GetDigits>
-    <Hangup/>
-</Response>"""
+        response = plivoxml.ResponseElement()
+        response.add(
+            plivoxml.GetDigitsElement(action=action_url, method="POST", num_digits=1, timeout=10).add(
+                plivoxml.SpeakElement("Sorry, we did not understand. Press 1 to confirm. Press 2 to reschedule.")
+            )
+        )
+        response.add(plivoxml.HangupElement())
+        xml = response.to_string()
     
+    print(f"=== PLIVO GATHER XML ===\n{xml}")
     return Response(content=xml, media_type="application/xml")
 
 
@@ -422,12 +424,12 @@ async def plivo_reason(request: Request):
         active_calls[call_id]["outcome"] = "DECLINED"
         active_calls[call_id]["decline_reason"] = reason_info[1]
     
-    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Speak>Thank you. We have noted your reason. Your agent will contact you to reschedule. Goodbye.</Speak>
-    <Hangup/>
-</Response>"""
+    response = plivoxml.ResponseElement()
+    response.add(plivoxml.SpeakElement("Thank you. We have noted your reason. Your agent will contact you to reschedule. Goodbye."))
+    response.add(plivoxml.HangupElement())
+    xml = response.to_string()
     
+    print(f"=== PLIVO REASON XML ===\n{xml}")
     return Response(content=xml, media_type="application/xml")
 
 
