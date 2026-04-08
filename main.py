@@ -327,13 +327,14 @@ async def plivo_answer(request: Request):
     audio_url = f"{AUDIO_BASE_URL}/audio/{lang}/01_greeting.wav"
     action_url = f"{APP_BASE_URL}/plivo/gather?call_id={call_id}&lang={lang}"
     
-    # Using Speak for testing - Plivo might have issues fetching audio from Railway
+    # Minimal test - just speak and wait for input
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <GetInput action="{action_url}" method="POST" input_type="dtmf" digit_end_timeout="5" num_digits="1">
-        <Speak voice="Polly.Aditi">Hello, this is a call from Fusion Finance. Your RO will visit tomorrow. Press 1 to confirm, or press 2 to reschedule.</Speak>
-    </GetInput>
-    <Speak voice="Polly.Aditi">We did not receive your response. Goodbye.</Speak>
+    <Speak>Hello. This is Fusion Finance. Your collection agent will visit you tomorrow.</Speak>
+    <Wait length="1"/>
+    <Speak>Press 1 to confirm. Press 2 to reschedule.</Speak>
+    <GetInput action="{action_url}" method="POST" input_type="dtmf" digit_end_timeout="10" num_digits="1"/>
+    <Speak>We did not receive your input. Goodbye.</Speak>
     <Hangup/>
 </Response>"""
     
@@ -364,7 +365,7 @@ async def plivo_gather(request: Request):
         
         xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Speak voice="Polly.Aditi">Thank you for confirming. Your RO will visit you tomorrow. Have a good day.</Speak>
+    <Speak>Thank you for confirming. Your agent will visit you tomorrow. Goodbye.</Speak>
     <Hangup/>
 </Response>"""
         
@@ -377,10 +378,11 @@ async def plivo_gather(request: Request):
         action_url = f"{APP_BASE_URL}/plivo/reason?call_id={call_id}&lang={lang}"
         xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <GetInput action="{action_url}" method="POST" input_type="dtmf" digit_end_timeout="5" num_digits="1">
-        <Speak voice="Polly.Aditi">Please tell us why you cannot meet tomorrow. Press 1 for travel, 2 for health, 3 for financial issues, 4 for work, 5 for family event, or 6 for agricultural work.</Speak>
-    </GetInput>
-    <Speak voice="Polly.Aditi">We did not receive your response. Goodbye.</Speak>
+    <Speak>Please tell us why you cannot meet tomorrow.</Speak>
+    <Wait length="1"/>
+    <Speak>Press 1 for travel. Press 2 for health. Press 3 for financial issues. Press 4 for work. Press 5 for family. Press 6 for agriculture.</Speak>
+    <GetInput action="{action_url}" method="POST" input_type="dtmf" digit_end_timeout="10" num_digits="1"/>
+    <Speak>We did not receive your input. Goodbye.</Speak>
     <Hangup/>
 </Response>"""
         
@@ -392,9 +394,8 @@ async def plivo_gather(request: Request):
         action_url = f"{APP_BASE_URL}/plivo/gather?call_id={call_id}&lang={lang}"
         xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <GetInput action="{action_url}" method="POST" input_type="dtmf" digit_end_timeout="5" num_digits="1">
-        <Speak voice="Polly.Aditi">Sorry, we did not understand. Press 1 to confirm your availability, or press 2 to reschedule.</Speak>
-    </GetInput>
+    <Speak>Sorry, we did not understand. Press 1 to confirm. Press 2 to reschedule.</Speak>
+    <GetInput action="{action_url}" method="POST" input_type="dtmf" digit_end_timeout="10" num_digits="1"/>
     <Hangup/>
 </Response>"""
     
@@ -424,7 +425,7 @@ async def plivo_reason(request: Request):
     
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Speak voice="Polly.Aditi">Thank you. We have noted your reason. Your RO will contact you to reschedule. Have a good day.</Speak>
+    <Speak>Thank you. We have noted your reason. Your agent will contact you to reschedule. Goodbye.</Speak>
     <Hangup/>
 </Response>"""
     
@@ -1131,31 +1132,121 @@ HTML_PAGE = """
                     `• <em>Farmers:</em> Align collection calls with harvest cycles (Oct-Nov, Mar-Apr)<br>` +
                     `• <em>Traders:</em> Call on Wed/Fri, avoid market days<br>` +
                     `• <em>Daily Wage:</em> Morning calls before 8 AM, before they leave for work`;
+            } else if (ql.includes('how many') || ql.includes('calls today') || ql.includes('summary') || ql.includes('overview')) {
+                response = `<strong>📞 Today's Call Summary:</strong><br><br>` +
+                    `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;">` +
+                    `<div class="glass rounded-lg p-3 text-center"><span class="text-2xl font-bold text-orange-400">1,247</span><br><span class="text-xs text-gray-400">Total Calls</span></div>` +
+                    `<div class="glass rounded-lg p-3 text-center"><span class="text-2xl font-bold text-green-400">87.3%</span><br><span class="text-xs text-gray-400">Connected</span></div>` +
+                    `<div class="glass rounded-lg p-3 text-center"><span class="text-2xl font-bold text-purple-400">67.4%</span><br><span class="text-xs text-gray-400">Confirmed</span></div>` +
+                    `</div>` +
+                    `<strong>Breakdown:</strong><br>` +
+                    `• ✅ Confirmed visits: <strong>734</strong> borrowers ready for tomorrow<br>` +
+                    `• ❌ Declined/Reschedule: <strong>355</strong> borrowers with reasons captured<br>` +
+                    `• 📵 Not connected: <strong>158</strong> (retry scheduled for evening)<br><br>` +
+                    `<strong>💡 Insight:</strong> Confirmation rate is 4% below target. Financial stress declines up 8% — recommend proactive restructuring outreach.`;
+            } else if (ql.includes('why') && ql.includes('warangal')) {
+                response = `<strong>🔍 Root Cause Analysis: Warangal Rural HIGH Alert</strong><br><br>` +
+                    `Warangal Rural triggered HIGH alert due to <strong>3 converging factors</strong>:<br><br>` +
+                    `<strong>1. Financial Stress Spike (+23% MoM)</strong><br>` +
+                    `• 23 borrowers citing financial stress — highest in portfolio<br>` +
+                    `• Correlates with local factory layoffs in September<br>` +
+                    `• 8 of these are daily wage workers from affected factory<br><br>` +
+                    `<strong>2. Consecutive Decliners</strong><br>` +
+                    `• 6 borrowers have declined 4+ consecutive calls<br>` +
+                    `• Pattern suggests avoidance, not scheduling conflict<br>` +
+                    `• BRW10234 has declined 6 times — likely pre-NPA<br><br>` +
+                    `<strong>3. RO Coverage Gap</strong><br>` +
+                    `• Current RO Suresh handling 127 borrowers (above 100 threshold)<br>` +
+                    `• Visit completion rate dropped to 78% vs 92% target<br><br>` +
+                    `<strong>📋 Recommended Intervention:</strong><br>` +
+                    `Deploy senior RO + restructuring offers for financial stress cases. Estimated ₹45L saveable.`;
+            } else if (ql.includes('compare') || ql.includes('vs') || ql.includes('versus') || ql.includes('difference')) {
+                response = `<strong>📊 Cluster Comparison Analysis:</strong><br><br>` +
+                    `<table style="width:100%;font-size:12px;border-collapse:collapse;">` +
+                    `<tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><th style="text-align:left;padding:4px;">Centre</th><th>Risk</th><th>Decliners</th><th>Stress</th><th>Status</th></tr>` +
+                    `<tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><td style="padding:4px;">Warangal Rural</td><td class="text-red-400">52</td><td>18</td><td>23</td><td>🔴 HIGH</td></tr>` +
+                    `<tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><td style="padding:4px;">Karimnagar</td><td class="text-red-400">47</td><td>14</td><td>18</td><td>🔴 HIGH</td></tr>` +
+                    `<tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><td style="padding:4px;">Shad Nagar</td><td class="text-yellow-400">34</td><td>12</td><td>8</td><td>🟡 MED</td></tr>` +
+                    `<tr style="border-bottom:1px solid rgba(255,255,255,0.1);"><td style="padding:4px;">Nizamabad</td><td class="text-yellow-400">28</td><td>9</td><td>6</td><td>🟡 MED</td></tr>` +
+                    `<tr><td style="padding:4px;">Medak</td><td class="text-green-400">18</td><td>4</td><td>2</td><td>🟢 LOW</td></tr>` +
+                    `</table><br>` +
+                    `<strong>💡 Key Insight:</strong> Warangal & Karimnagar together account for <strong>68%</strong> of all financial stress cases. Medak's success pattern: smaller portfolio (67 borrowers) + dedicated senior RO.`;
+            } else if (ql.includes('trend') || ql.includes('week') || ql.includes('month') || ql.includes('pattern')) {
+                response = `<strong>📈 Weekly Trend Analysis:</strong><br><br>` +
+                    `<strong>Confirmation Rate Trend:</strong><br>` +
+                    `• Week 1: 72.1% ✓<br>` +
+                    `• Week 2: 69.8% ↓<br>` +
+                    `• Week 3: 68.2% ↓<br>` +
+                    `• Week 4 (current): <span class="text-yellow-400">67.4%</span> ↓<br><br>` +
+                    `<strong>🚨 Concerning Patterns:</strong><br>` +
+                    `• Financial stress mentions up <span class="text-red-400">+31%</span> over 4 weeks<br>` +
+                    `• Agricultural declines spiking — harvest season impact<br>` +
+                    `• Warangal degraded from MEDIUM → HIGH in 2 weeks<br><br>` +
+                    `<strong>✅ Positive Signals:</strong><br>` +
+                    `• Connection rate stable at 87%+ (IVR + voice working)<br>` +
+                    `• Medak improved from MEDIUM → LOW after RO change<br>` +
+                    `• Health-related declines down 12% (seasonal)<br><br>` +
+                    `<strong>📋 Forecast:</strong> Without intervention, expect NPA to hit 3.4% (+0.6%) in 60 days.`;
+            } else if (ql.includes('save') || ql.includes('prevent') || ql.includes('intervention') || ql.includes('restructur')) {
+                response = `<strong>💰 Intervention & Savings Analysis:</strong><br><br>` +
+                    `<strong>At-Risk Portfolio:</strong> ₹4.2 Cr across 154 borrowers<br><br>` +
+                    `<strong>Saveable with Intervention:</strong><br>` +
+                    `<div class="glass rounded-lg p-3 my-2 text-center">` +
+                    `<span class="text-3xl font-bold text-green-400">₹1.8 Cr</span><br>` +
+                    `<span class="text-xs text-gray-400">67 borrowers responsive to restructuring</span>` +
+                    `</div><br>` +
+                    `<strong>Intervention Strategies by Segment:</strong><br>` +
+                    `• <strong>EMI Restructuring</strong> (41 borrowers): Extend tenure, reduce EMI by 20-30%<br>` +
+                    `• <strong>Harvest Alignment</strong> (18 farmers): Defer 2 EMIs to post-harvest<br>` +
+                    `• <strong>Personal Outreach</strong> (8 high-value): Branch manager home visits<br><br>` +
+                    `<strong>ROI Calculation:</strong><br>` +
+                    `• Intervention cost: ~₹2.5L (RO time + restructuring ops)<br>` +
+                    `• Potential save: ₹1.8 Cr<br>` +
+                    `• <strong>ROI: 72x</strong> — every ₹1 spent saves ₹72 in potential NPA`;
+            } else if (ql.includes('hello') || ql.includes('hi') || ql.includes('hey')) {
+                response = `<strong>👋 Hello!</strong><br><br>` +
+                    `I'm SmaartAnalyst, your Voice Intelligence copilot. I've analyzed today's <strong>1,247 pre-collection calls</strong> and I'm ready to help.<br><br>` +
+                    `<strong>Quick highlights:</strong><br>` +
+                    `• 🔴 2 clusters need immediate attention (Warangal, Karimnagar)<br>` +
+                    `• 💰 ₹1.8 Cr saveable with early intervention<br>` +
+                    `• 📊 Financial stress up 8% — recommend proactive outreach<br><br>` +
+                    `What would you like to explore?`;
+            } else if (ql.includes('thank')) {
+                response = `You're welcome! 🙏<br><br>Remember, every insight I provide is derived from actual borrower voice data — their stated reasons, patterns, and behaviors. This is the <strong>decision intelligence layer</strong> that turns calls into actionable strategy.<br><br>Anything else you'd like to analyze?`;
             } else {
                 response = `<strong>🤖 SmaartAnalyst — Voice Intelligence</strong><br><br>` +
-                    `I analyze your Day Minus 1 call data to provide actionable insights. Ask me about:<br><br>` +
-                    `• 📊 <em>"Decline reasons"</em> — Why are borrowers declining? What patterns?<br>` +
-                    `• 🔴 <em>"Cluster risk"</em> — Which villages/centres need immediate attention?<br>` +
-                    `• 🚨 <em>"Frequent decliners"</em> — Who keeps declining? Risk scores?<br>` +
-                    `• 📈 <em>"NPA prediction"</em> — 60-day portfolio outlook, at-risk amount<br>` +
-                    `• 🏢 <em>"Warangal insights"</em> — Deep dive into specific centre<br>` +
-                    `• 🎯 <em>"Priority actions"</em> — What should each department do today?<br>` +
-                    `• 👥 <em>"Borrower personas"</em> — Segment analysis and best practices<br><br>` +
-                    `<strong>Try:</strong> <em>"What are the priority actions for today?"</em>`;
+                    `I analyze your Day Minus 1 call data to surface patterns humans miss. Try asking:<br><br>` +
+                    `• 📊 <em>"Why is Warangal high risk?"</em> — Root cause analysis<br>` +
+                    `• 🔴 <em>"Compare all clusters"</em> — Side-by-side performance<br>` +
+                    `• 📈 <em>"Show me the trend"</em> — Weekly patterns<br>` +
+                    `• 💰 <em>"How much can we save?"</em> — Intervention ROI<br>` +
+                    `• 📞 <em>"How many calls today?"</em> — Quick summary<br>` +
+                    `• 🎯 <em>"Priority actions"</em> — Department-wise tasks<br><br>` +
+                    `<strong>Or try:</strong> <em>"${['What are the priority actions for today?', 'Why is Warangal high risk?', 'Compare all clusters', 'How much can we save with intervention?'][Math.floor(Math.random()*4)]}"</em>`;
             }
             
-            // Add AI response
+            // Add thinking indicator then response
+            const thinkingId = 'thinking-' + Date.now();
+            box.innerHTML += `
+                <div class="flex gap-3" id="${thinkingId}">
+                    <div class="w-8 h-8 rounded-lg gradient-purple flex items-center justify-center flex-shrink-0 text-sm">🤖</div>
+                    <div class="glass rounded-xl p-3">
+                        <p class="text-sm text-gray-400"><span class="animate-pulse">Analyzing call data...</span></p>
+                    </div>
+                </div>
+            `;
+            box.scrollTop = box.scrollHeight;
+            
+            // Replace thinking with actual response
             setTimeout(() => {
-                box.innerHTML += `
-                    <div class="flex gap-3">
-                        <div class="w-8 h-8 rounded-lg gradient-purple flex items-center justify-center flex-shrink-0 text-sm">🤖</div>
-                        <div class="glass rounded-xl p-3 max-w-[85%]">
-                            <p class="text-sm">${response}</p>
-                        </div>
+                document.getElementById(thinkingId).innerHTML = `
+                    <div class="w-8 h-8 rounded-lg gradient-purple flex items-center justify-center flex-shrink-0 text-sm">🤖</div>
+                    <div class="glass rounded-xl p-3 max-w-[85%]">
+                        <p class="text-sm">${response}</p>
                     </div>
                 `;
                 box.scrollTop = box.scrollHeight;
-            }, 500);
+            }, 800 + Math.random() * 400);
             
             box.scrollTop = box.scrollHeight;
         }
