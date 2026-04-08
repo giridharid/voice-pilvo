@@ -301,12 +301,13 @@ async def plivo_answer(request: Request):
     audio_url = f"{AUDIO_BASE_URL}/audio/{lang}/01_greeting.wav"
     action_url = f"{APP_BASE_URL}/plivo/gather?call_id={call_id}&lang={lang}"
     
+    # Using Speak for testing - Plivo might have issues fetching audio from Railway
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <GetDigits action="{action_url}" method="POST" timeout="10" numDigits="1" retries="1">
-        <Play>{audio_url}</Play>
-    </GetDigits>
-    <Play>{AUDIO_BASE_URL}/audio/{lang}/05_unclear.wav</Play>
+    <GetInput action="{action_url}" method="POST" inputType="dtmf" digitEndTimeout="5" numDigits="1">
+        <Speak voice="Polly.Aditi" language="en-IN">Hello, this is a call from Fusion Finance. Your RO will visit tomorrow. Press 1 to confirm, or press 2 to reschedule.</Speak>
+    </GetInput>
+    <Speak voice="Polly.Aditi" language="en-IN">We did not receive your response. Goodbye.</Speak>
     <Hangup/>
 </Response>"""
     
@@ -337,7 +338,7 @@ async def plivo_gather(request: Request):
         
         xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Play>{AUDIO_BASE_URL}/audio/{lang}/02_confirmed.wav</Play>
+    <Speak voice="Polly.Aditi" language="en-IN">Thank you for confirming. Your RO will visit you tomorrow. Have a good day.</Speak>
     <Hangup/>
 </Response>"""
         
@@ -350,10 +351,10 @@ async def plivo_gather(request: Request):
         action_url = f"{APP_BASE_URL}/plivo/reason?call_id={call_id}&lang={lang}"
         xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <GetDigits action="{action_url}" method="POST" timeout="10" numDigits="1" retries="1">
-        <Play>{AUDIO_BASE_URL}/audio/{lang}/03_ask_reason.wav</Play>
-    </GetDigits>
-    <Play>{AUDIO_BASE_URL}/audio/{lang}/05_unclear.wav</Play>
+    <GetInput action="{action_url}" method="POST" inputType="dtmf" digitEndTimeout="5" numDigits="1">
+        <Speak voice="Polly.Aditi" language="en-IN">Please tell us why you cannot meet tomorrow. Press 1 for travel, 2 for health, 3 for financial issues, 4 for work, 5 for family event, or 6 for agricultural work.</Speak>
+    </GetInput>
+    <Speak voice="Polly.Aditi" language="en-IN">We did not receive your response. Goodbye.</Speak>
     <Hangup/>
 </Response>"""
         
@@ -365,9 +366,9 @@ async def plivo_gather(request: Request):
         action_url = f"{APP_BASE_URL}/plivo/gather?call_id={call_id}&lang={lang}"
         xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <GetDigits action="{action_url}" method="POST" timeout="10" numDigits="1" retries="1">
-        <Play>{AUDIO_BASE_URL}/audio/{lang}/05_unclear.wav</Play>
-    </GetDigits>
+    <GetInput action="{action_url}" method="POST" inputType="dtmf" digitEndTimeout="5" numDigits="1">
+        <Speak voice="Polly.Aditi" language="en-IN">Sorry, we did not understand. Press 1 to confirm your availability, or press 2 to reschedule.</Speak>
+    </GetInput>
     <Hangup/>
 </Response>"""
     
@@ -397,7 +398,7 @@ async def plivo_reason(request: Request):
     
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Play>{AUDIO_BASE_URL}/audio/{lang}/04_reschedule_confirm.wav</Play>
+    <Speak voice="Polly.Aditi" language="en-IN">Thank you. We have noted your reason. Your RO will contact you to reschedule. Have a good day.</Speak>
     <Hangup/>
 </Response>"""
     
