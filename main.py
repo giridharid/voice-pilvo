@@ -6,7 +6,7 @@ Real Plivo calls + Intelligence Dashboard
 Run: python main.py
 """
 
-VERSION = "1.1.2"  # 2026-04-08 22:52 IST - Retry logic (2 max) + NOT_RESPONSIVE
+VERSION = "1.1.3"  # 2026-04-08 22:58 IST - Use WAV for max retry goodbye
 
 import os
 import json
@@ -392,7 +392,9 @@ async def plivo_gather(request: Request):
                 active_calls[call_id]["outcome"] = "DECLINED"
                 active_calls[call_id]["decline_reason"] = "NOT_RESPONSIVE"
             
-            xml = f'<Response><Speak>We could not understand your response. Goodbye.</Speak><Hangup/></Response>'
+            # Play unclear audio and hang up
+            audio_url = f"{AUDIO_BASE_URL}/audio/{lang}/05_unclear.wav"
+            xml = f'<Response><Play>{audio_url}</Play><Hangup/></Response>'
         else:
             # Retry - play invalid message and ask again
             if call_id in active_calls:
