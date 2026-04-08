@@ -6,7 +6,7 @@ Real Plivo calls + Intelligence Dashboard
 Run: python main.py
 """
 
-VERSION = "1.0.7"  # 2026-04-08 22:35 IST - FIX: & -> &amp; in XML
+VERSION = "1.0.8"  # 2026-04-08 22:35 IST - Use Play for language audio
 
 import os
 import json
@@ -332,11 +332,12 @@ async def plivo_answer(request: Request):
         await add_transcript(call_id, "Agent", f"🔊 Playing greeting in {lang_name}: '{ro_name} will visit you tomorrow. Press 1 to confirm, 2 to reschedule.'")
         call["state"] = CallState.WAIT_AVAILABILITY
     
-    # IMPORTANT: & must be &amp; in XML attributes!
+    # Use pre-recorded audio for proper language support
+    audio_url = f"{AUDIO_BASE_URL}/audio/{lang}/01_greeting.wav"
     action_url = f"{APP_BASE_URL}/plivo/gather?call_id={call_id}&amp;lang={lang}"
     
-    # Exact format from Plivo docs
-    xml = f'<Response><GetDigits action="{action_url}" numDigits="1"><Speak>Hello. Press 1 to confirm. Press 2 to reschedule.</Speak></GetDigits><Speak>No input received. Goodbye.</Speak></Response>'
+    # Try Play first (pre-recorded), fallback message after
+    xml = f'<Response><GetDigits action="{action_url}" numDigits="1"><Play>{audio_url}</Play></GetDigits><Speak>No input received. Goodbye.</Speak></Response>'
     
     print(f"=== PLIVO XML ===\n{xml}")
     
