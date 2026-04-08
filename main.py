@@ -330,10 +330,10 @@ async def plivo_answer(request: Request):
     # Using Speak for testing - Plivo might have issues fetching audio from Railway
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <GetInput action="{action_url}" method="POST" inputType="dtmf" digitEndTimeout="5" numDigits="1">
-        <Speak voice="Polly.Aditi" language="en-IN">Hello, this is a call from Fusion Finance. Your RO will visit tomorrow. Press 1 to confirm, or press 2 to reschedule.</Speak>
+    <GetInput action="{action_url}" method="POST" input_type="dtmf" digit_end_timeout="5" num_digits="1">
+        <Speak voice="Polly.Aditi">Hello, this is a call from Fusion Finance. Your RO will visit tomorrow. Press 1 to confirm, or press 2 to reschedule.</Speak>
     </GetInput>
-    <Speak voice="Polly.Aditi" language="en-IN">We did not receive your response. Goodbye.</Speak>
+    <Speak voice="Polly.Aditi">We did not receive your response. Goodbye.</Speak>
     <Hangup/>
 </Response>"""
     
@@ -364,7 +364,7 @@ async def plivo_gather(request: Request):
         
         xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Speak voice="Polly.Aditi" language="en-IN">Thank you for confirming. Your RO will visit you tomorrow. Have a good day.</Speak>
+    <Speak voice="Polly.Aditi">Thank you for confirming. Your RO will visit you tomorrow. Have a good day.</Speak>
     <Hangup/>
 </Response>"""
         
@@ -377,10 +377,10 @@ async def plivo_gather(request: Request):
         action_url = f"{APP_BASE_URL}/plivo/reason?call_id={call_id}&lang={lang}"
         xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <GetInput action="{action_url}" method="POST" inputType="dtmf" digitEndTimeout="5" numDigits="1">
-        <Speak voice="Polly.Aditi" language="en-IN">Please tell us why you cannot meet tomorrow. Press 1 for travel, 2 for health, 3 for financial issues, 4 for work, 5 for family event, or 6 for agricultural work.</Speak>
+    <GetInput action="{action_url}" method="POST" input_type="dtmf" digit_end_timeout="5" num_digits="1">
+        <Speak voice="Polly.Aditi">Please tell us why you cannot meet tomorrow. Press 1 for travel, 2 for health, 3 for financial issues, 4 for work, 5 for family event, or 6 for agricultural work.</Speak>
     </GetInput>
-    <Speak voice="Polly.Aditi" language="en-IN">We did not receive your response. Goodbye.</Speak>
+    <Speak voice="Polly.Aditi">We did not receive your response. Goodbye.</Speak>
     <Hangup/>
 </Response>"""
         
@@ -392,8 +392,8 @@ async def plivo_gather(request: Request):
         action_url = f"{APP_BASE_URL}/plivo/gather?call_id={call_id}&lang={lang}"
         xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <GetInput action="{action_url}" method="POST" inputType="dtmf" digitEndTimeout="5" numDigits="1">
-        <Speak voice="Polly.Aditi" language="en-IN">Sorry, we did not understand. Press 1 to confirm your availability, or press 2 to reschedule.</Speak>
+    <GetInput action="{action_url}" method="POST" input_type="dtmf" digit_end_timeout="5" num_digits="1">
+        <Speak voice="Polly.Aditi">Sorry, we did not understand. Press 1 to confirm your availability, or press 2 to reschedule.</Speak>
     </GetInput>
     <Hangup/>
 </Response>"""
@@ -424,7 +424,7 @@ async def plivo_reason(request: Request):
     
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-    <Speak voice="Polly.Aditi" language="en-IN">Thank you. We have noted your reason. Your RO will contact you to reschedule. Have a good day.</Speak>
+    <Speak voice="Polly.Aditi">Thank you. We have noted your reason. Your RO will contact you to reschedule. Have a good day.</Speak>
     <Hangup/>
 </Response>"""
     
@@ -995,132 +995,153 @@ HTML_PAGE = """
                 </div>
             `;
             
-            // Generate response based on question
+            // Generate response based on question - HARDCODED DEMO DATA
             let response = '';
             const ql = q.toLowerCase();
             
-            if (!intelData) {
-                response = 'Loading intelligence data... Please try again in a moment.';
-            } else if (ql.includes('cluster') || ql.includes('risk') || ql.includes('village')) {
-                const highRisk = Object.entries(intelData.clusters).filter(([k,v]) => v.alert === 'HIGH');
-                const medRisk = Object.entries(intelData.clusters).filter(([k,v]) => v.alert === 'MEDIUM');
-                response = `<strong>🔴 High Risk Clusters (${highRisk.length}):</strong><br>` + 
-                    highRisk.map(([name, c]) => `• <strong>${name}</strong>: ${c.financial_stress} financial stress cases`).join('<br>') +
-                    `<br><br><strong>🟡 Medium Risk (${medRisk.length}):</strong><br>` +
-                    medRisk.map(([name, c]) => `• ${name}: ${c.frequent} frequent decliners`).join('<br>') +
-                    `<br><br><strong>📋 Action Plan:</strong><br>` +
+            if (ql.includes('cluster') || ql.includes('risk') || ql.includes('village')) {
+                response = `<strong>🔴 High Risk Clusters (2):</strong><br>` +
+                    `• <strong>Warangal Rural</strong>: 23 financial stress cases, Avg Risk 52<br>` +
+                    `• <strong>Karimnagar</strong>: 18 financial stress cases, Avg Risk 47<br><br>` +
+                    `<strong>🟡 Medium Risk (2):</strong><br>` +
+                    `• <strong>Shad Nagar</strong>: 12 frequent decliners, Avg Risk 34<br>` +
+                    `• <strong>Nizamabad</strong>: 9 frequent decliners, Avg Risk 28<br><br>` +
+                    `<strong>🟢 Low Risk (1):</strong><br>` +
+                    `• <strong>Medak</strong>: 4 frequent decliners, Avg Risk 18<br><br>` +
+                    `<strong>📋 Department Actions:</strong><br>` +
                     `• <em>Field Ops:</em> Deploy senior ROs to Warangal Rural immediately<br>` +
-                    `• <em>Collections:</em> Prioritize 23 financial stress cases for restructuring discussion<br>` +
-                    `• <em>Risk:</em> Flag these clusters for weekly monitoring`;
+                    `• <em>Collections:</em> Prioritize 41 financial stress cases for restructuring<br>` +
+                    `• <em>Risk:</em> Flag HIGH clusters for daily monitoring this week`;
             } else if (ql.includes('decline') || ql.includes('reason')) {
-                const reasons = Object.entries(intelData.decline_reasons).sort((a,b) => b[1] - a[1]);
-                response = `<strong>📊 Decline Reason Analysis:</strong><br>` + 
-                    reasons.map(([r, count]) => `• ${r.replace(/_/g, ' ')}: <strong>${count}</strong> (${Math.round(count/1247*100)}%)`).join('<br>') +
-                    `<br><br><strong>📋 Department Actions:</strong><br>` +
-                    `• <em>Collections:</em> Financial stress (312 cases) — initiate early restructuring conversations<br>` +
-                    `• <em>Field Ops:</em> Travel/Market conflicts — adjust visit timing to evenings<br>` +
-                    `• <em>Product:</em> Consider flexible payment dates for agricultural borrowers`;
+                response = `<strong>📊 Decline Reason Analysis (355 declines):</strong><br><br>` +
+                    `• <strong>Financial Stress</strong>: 127 (36%) <span class="text-red-400">↑ 8% vs last month</span><br>` +
+                    `• <strong>Travel / Market</strong>: 89 (25%)<br>` +
+                    `• <strong>Crop / Agriculture</strong>: 71 (20%) <span class="text-yellow-400">↑ seasonal</span><br>` +
+                    `• <strong>Health Issues</strong>: 39 (11%)<br>` +
+                    `• <strong>Work / Office</strong>: 18 (5%)<br>` +
+                    `• <strong>Family Event</strong>: 11 (3%)<br><br>` +
+                    `<strong>📋 Department Actions:</strong><br>` +
+                    `• <em>Collections:</em> Financial stress cases need early restructuring — 127 borrowers at risk of NPA<br>` +
+                    `• <em>Field Ops:</em> Adjust visit timing to evenings for Travel/Market conflicts<br>` +
+                    `• <em>Product:</em> Consider harvest-aligned EMI dates for agricultural borrowers`;
             } else if (ql.includes('frequent') || ql.includes('decliner')) {
-                const top = intelData.frequent_decliners.slice(0, 5);
-                response = `<strong>🚨 Frequent Decliners (Top 5):</strong><br>` + 
-                    top.map((b,i) => `${i+1}. <strong>${b.id}</strong> — ${b.decline_count}x declined, Risk Score: <span class="${b.risk_score >= 60 ? 'text-red-400' : 'text-yellow-400'}">${b.risk_score}</span><br>&nbsp;&nbsp;&nbsp;Cluster: ${b.cluster} | Reasons: ${b.decline_reasons.join(', ')}`).join('<br>') +
-                    `<br><br><strong>📋 Recommended Actions:</strong><br>` +
-                    `• <em>Relationship Manager:</em> Personal call to top 5 — understand root cause<br>` +
-                    `• <em>Collections:</em> Offer EMI restructuring for financial stress cases<br>` +
-                    `• <em>Risk:</em> Add to watchlist for 60-day NPA prediction`;
+                response = `<strong>🚨 Frequent Decliners (47 borrowers with 3+ declines):</strong><br><br>` +
+                    `1. <strong>BRW10234</strong> — 6x declined, Risk: <span class="text-red-400">92</span><br>` +
+                    `&nbsp;&nbsp;&nbsp;Cluster: Warangal Rural | Reason: Financial Stress<br>` +
+                    `2. <strong>BRW10456</strong> — 5x declined, Risk: <span class="text-red-400">78</span><br>` +
+                    `&nbsp;&nbsp;&nbsp;Cluster: Karimnagar | Reason: Financial Stress<br>` +
+                    `3. <strong>BRW10789</strong> — 5x declined, Risk: <span class="text-yellow-400">65</span><br>` +
+                    `&nbsp;&nbsp;&nbsp;Cluster: Shad Nagar | Reason: Crop/Agriculture<br>` +
+                    `4. <strong>BRW10123</strong> — 4x declined, Risk: <span class="text-yellow-400">58</span><br>` +
+                    `&nbsp;&nbsp;&nbsp;Cluster: Warangal Rural | Reason: Travel/Market<br>` +
+                    `5. <strong>BRW10567</strong> — 4x declined, Risk: <span class="text-yellow-400">52</span><br>` +
+                    `&nbsp;&nbsp;&nbsp;Cluster: Nizamabad | Reason: Health<br><br>` +
+                    `<strong>📋 Department Actions:</strong><br>` +
+                    `• <em>Relationship Manager:</em> Personal call to top 5 today — understand root cause<br>` +
+                    `• <em>Collections:</em> Offer EMI restructuring for BRW10234, BRW10456<br>` +
+                    `• <em>Risk:</em> All 47 added to 60-day NPA watchlist`;
             } else if (ql.includes('npa') || ql.includes('predict') || ql.includes('portfolio')) {
-                response = `<strong>📈 NPA Prediction (60-Day Outlook):</strong><br>` +
-                    `• Current NPA: <strong>${intelData.npa.current}%</strong><br>` +
-                    `• Predicted NPA: <strong class="text-red-400">${intelData.npa.predicted}%</strong> (+0.6%)<br>` +
-                    `• At-Risk Amount: <strong>₹${intelData.npa.at_risk}</strong><br>` +
-                    `• Saveable with intervention: <strong class="text-green-400">₹${intelData.npa.savings}</strong><br><br>` +
+                response = `<strong>📈 NPA Prediction (60-Day Outlook):</strong><br><br>` +
+                    `<div style="display:flex;gap:20px;margin-bottom:12px;">` +
+                    `<div><span class="text-gray-400">Current NPA</span><br><strong class="text-2xl">2.8%</strong></div>` +
+                    `<div><span class="text-gray-400">Predicted</span><br><strong class="text-2xl text-red-400">3.4%</strong> <span class="text-red-400">↑0.6%</span></div>` +
+                    `</div>` +
+                    `• At-Risk Amount: <strong>₹4.2 Cr</strong> (154 borrowers)<br>` +
+                    `• Saveable with intervention: <strong class="text-green-400">₹1.8 Cr</strong> (67 borrowers)<br><br>` +
                     `<strong>📋 Department Priorities:</strong><br>` +
-                    `• <em>CEO/CCO:</em> 154 borrowers in early warning — authorize early intervention budget<br>` +
+                    `• <em>CEO/CCO:</em> Authorize early intervention budget for 154 at-risk borrowers<br>` +
                     `• <em>Collections Head:</em> Focus on 47 frequent decliners with financial stress<br>` +
-                    `• <em>Field Ops:</em> Warangal and Karimnagar need additional RO support<br>` +
-                    `• <em>Risk:</em> Weekly tracking of predicted-to-actual NPA conversion`;
-            } else if (ql.includes('ro') || ql.includes('centre') || ql.includes('center') || ql.includes('affected') || ql.includes('branch') || ql.includes('shad') || ql.includes('warangal') || ql.includes('karimnagar') || ql.includes('nizamabad') || ql.includes('medak')) {
-                // Check if asking about specific centre
-                let specificCentre = null;
-                const centreNames = Object.keys(intelData.clusters);
-                for (const name of centreNames) {
-                    if (ql.includes(name.toLowerCase().split(' ')[0])) {
-                        specificCentre = [name, intelData.clusters[name]];
-                        break;
-                    }
-                }
-                
-                if (specificCentre) {
-                    const [name, c] = specificCentre;
-                    const alertColor = c.alert === 'HIGH' ? 'text-red-400' : c.alert === 'MEDIUM' ? 'text-yellow-400' : 'text-green-400';
-                    response = `<strong>🏢 ${name} Centre Insights:</strong><br><br>` +
-                        `<strong>Status:</strong> <span class="${alertColor}">${c.alert} ALERT</span><br>` +
-                        `<strong>State:</strong> ${c.state}<br>` +
-                        `<strong>Total Borrowers:</strong> ${c.total}<br>` +
-                        `<strong>Average Risk Score:</strong> ${c.avg_risk}<br>` +
-                        `<strong>Frequent Decliners:</strong> ${c.frequent}<br>` +
-                        `<strong>Financial Stress Cases:</strong> ${c.financial_stress}<br><br>` +
-                        `<strong>📊 Key Patterns:</strong><br>` +
-                        `• Peak decline reason: Financial stress (${Math.round(c.financial_stress/c.total*100)}%)<br>` +
-                        `• ${c.frequent} borrowers declined 3+ times<br>` +
-                        `• Avg collection efficiency: ${100 - c.avg_risk}%<br><br>` +
-                        `<strong>📋 Actions for ${name}:</strong><br>` +
-                        `• <em>Branch Manager:</em> Personal review of top 5 decliners this week<br>` +
-                        `• <em>Collections:</em> Restructuring offers for ${c.financial_stress} financial stress cases<br>` +
-                        `• <em>Field Ops:</em> ${c.alert === 'HIGH' ? 'Deploy senior RO for support' : 'Continue normal monitoring'}<br>` +
-                        `• <em>Risk:</em> ${c.alert === 'HIGH' ? 'Weekly review' : 'Monthly review'} of this portfolio`;
-                } else {
-                    const sorted = Object.entries(intelData.clusters).sort((a,b) => b[1].avg_risk - a[1].avg_risk);
-                    const worst = sorted[0];
-                    const best = sorted[sorted.length-1];
-                    response = `<strong>🏢 Centre Performance Analysis:</strong><br><br>` +
-                        `<strong class="text-red-400">⬇️ Needs Attention:</strong><br>` +
-                        `• <strong>${worst[0]}</strong> (${worst[1].state})<br>` +
-                        `&nbsp;&nbsp;Risk: ${worst[1].avg_risk} | Decliners: ${worst[1].frequent} | Stress: ${worst[1].financial_stress}<br><br>` +
-                        `<strong class="text-green-400">⬆️ Top Performer:</strong><br>` +
-                        `• <strong>${best[0]}</strong> (${best[1].state})<br>` +
-                        `&nbsp;&nbsp;Risk: ${best[1].avg_risk} | Decliners: ${best[1].frequent}<br><br>` +
-                        `<strong>💡 Ask about specific centre:</strong><br>` +
-                        `• "Shad Nagar centre insights"<br>` +
-                        `• "Warangal Rural performance"<br>` +
-                        `• "Karimnagar analysis"`;
-                }
-            } else if (ql.includes('action') || ql.includes('what should') || ql.includes('recommend') || ql.includes('priority')) {
+                    `• <em>Field Ops:</em> Warangal + Karimnagar need 2 additional ROs this month<br>` +
+                    `• <em>Risk:</em> Weekly tracking of predicted vs actual NPA conversion`;
+            } else if (ql.includes('warangal')) {
+                response = `<strong>🏢 Warangal Rural Centre Insights:</strong><br><br>` +
+                    `<strong>Status:</strong> <span class="text-red-400">🔴 HIGH ALERT</span><br>` +
+                    `<strong>State:</strong> Telangana<br>` +
+                    `<strong>Total Borrowers:</strong> 127<br>` +
+                    `<strong>Average Risk Score:</strong> 52<br>` +
+                    `<strong>Frequent Decliners:</strong> 18<br>` +
+                    `<strong>Financial Stress Cases:</strong> 23<br><br>` +
+                    `<strong>📊 Key Patterns:</strong><br>` +
+                    `• Peak decline reason: Financial Stress (18%)<br>` +
+                    `• 18 borrowers declined 3+ times<br>` +
+                    `• Collection efficiency dropped to 48% this month<br><br>` +
+                    `<strong>📋 Actions for Warangal Rural:</strong><br>` +
+                    `• <em>Branch Manager:</em> Personal review of top 5 decliners today<br>` +
+                    `• <em>Collections:</em> Restructuring offers for 23 financial stress cases<br>` +
+                    `• <em>Field Ops:</em> Deploy senior RO Ravi for support this week<br>` +
+                    `• <em>Risk:</em> Daily monitoring until alert level drops`;
+            } else if (ql.includes('karimnagar')) {
+                response = `<strong>🏢 Karimnagar Centre Insights:</strong><br><br>` +
+                    `<strong>Status:</strong> <span class="text-red-400">🔴 HIGH ALERT</span><br>` +
+                    `<strong>State:</strong> Telangana<br>` +
+                    `<strong>Total Borrowers:</strong> 98<br>` +
+                    `<strong>Average Risk Score:</strong> 47<br>` +
+                    `<strong>Frequent Decliners:</strong> 14<br>` +
+                    `<strong>Financial Stress Cases:</strong> 18<br><br>` +
+                    `<strong>📊 Key Patterns:</strong><br>` +
+                    `• 8 consecutive decliners (same borrowers declining every call)<br>` +
+                    `• Crop/Agriculture reasons spiking — harvest delay<br><br>` +
+                    `<strong>📋 Actions for Karimnagar:</strong><br>` +
+                    `• <em>Branch Manager:</em> Meet with 8 consecutive decliners in person<br>` +
+                    `• <em>Collections:</em> Offer harvest-aligned EMI deferment<br>` +
+                    `• <em>Field Ops:</em> Coordinate with agriculture extension officer`;
+            } else if (ql.includes('centre') || ql.includes('center') || ql.includes('branch') || ql.includes('ro')) {
+                response = `<strong>🏢 Centre Performance Analysis:</strong><br><br>` +
+                    `<strong class="text-red-400">⬇️ Needs Attention:</strong><br>` +
+                    `• <strong>Warangal Rural</strong> (Telangana)<br>` +
+                    `&nbsp;&nbsp;Risk: 52 | Decliners: 18 | Financial Stress: 23<br>` +
+                    `• <strong>Karimnagar</strong> (Telangana)<br>` +
+                    `&nbsp;&nbsp;Risk: 47 | Decliners: 14 | Financial Stress: 18<br><br>` +
+                    `<strong class="text-green-400">⬆️ Top Performers:</strong><br>` +
+                    `• <strong>Medak</strong> (Telangana)<br>` +
+                    `&nbsp;&nbsp;Risk: 18 | Decliners: 4 | 94% confirmation rate<br><br>` +
+                    `<strong>💡 Ask about specific centre:</strong><br>` +
+                    `• "Warangal Rural insights"<br>` +
+                    `• "Karimnagar analysis"`;
+            } else if (ql.includes('action') || ql.includes('what should') || ql.includes('recommend') || ql.includes('priority') || ql.includes('today')) {
                 response = `<strong>🎯 Today's Priority Actions by Department:</strong><br><br>` +
-                    `<strong>Collections Team:</strong><br>` +
-                    `• Call 47 frequent decliners with financial stress today<br>` +
-                    `• Prepare restructuring options for 23 high-risk cases<br><br>` +
-                    `<strong>Field Operations:</strong><br>` +
-                    `• Deploy backup RO to Warangal Rural (HIGH alert)<br>` +
-                    `• Shift visit timing to evenings for market traders<br><br>` +
-                    `<strong>Risk Management:</strong><br>` +
+                    `<strong>👔 CCO / Management:</strong><br>` +
+                    `• Review ₹4.2 Cr at-risk portfolio with Collections Head<br>` +
+                    `• Approve emergency RO deployment to Warangal<br><br>` +
+                    `<strong>💰 Collections Team:</strong><br>` +
+                    `• Call 47 frequent decliners — prioritize financial stress cases<br>` +
+                    `• Prepare restructuring options for 23 Warangal cases<br>` +
+                    `• Follow up on yesterday's 12 "will call back" promises<br><br>` +
+                    `<strong>🚗 Field Operations:</strong><br>` +
+                    `• Deploy senior RO to Warangal Rural (HIGH alert)<br>` +
+                    `• Shift Karimnagar visits to evenings (market trader conflicts)<br>` +
+                    `• Coordinate Nizamabad visits with harvest schedule<br><br>` +
+                    `<strong>📊 Risk Management:</strong><br>` +
                     `• Update watchlist with 154 early warning borrowers<br>` +
-                    `• Prepare weekly NPA projection report for CCO<br><br>` +
-                    `<strong>Branch Managers:</strong><br>` +
-                    `• Karimnagar: Review 8 consecutive decliners<br>` +
-                    `• Nizamabad: Coordinate with agriculture extension for crop-related declines`;
+                    `• Generate weekly NPA projection for Friday CCO meeting<br>` +
+                    `• Flag 8 Karimnagar consecutive decliners for escalation`;
             } else if (ql.includes('persona') || ql.includes('borrower') || ql.includes('type') || ql.includes('segment')) {
-                response = `<strong>👥 Borrower Persona Analysis:</strong><br><br>` +
-                    `• 👨‍🌾 <strong>Farmers (38%)</strong> — Crop cycle dependent, seasonal income<br>` +
-                    `• 🏪 <strong>Traders (24%)</strong> — Market day conflicts, cash flow issues<br>` +
-                    `• 💼 <strong>Salaried (18%)</strong> — Most reliable, work schedule conflicts<br>` +
-                    `• 🔧 <strong>Self-Employed (12%)</strong> — Variable income, financial stress common<br>` +
-                    `• 🏗️ <strong>Daily Wage (8%)</strong> — Highest risk, irregular availability<br><br>` +
+                response = `<strong>👥 Borrower Persona Analysis (500 profiled):</strong><br><br>` +
+                    `• 👨‍🌾 <strong>Farmers (38%)</strong> — 190 borrowers<br>` +
+                    `&nbsp;&nbsp;Crop cycle dependent, seasonal income, harvest-aligned EMIs work best<br>` +
+                    `• 🏪 <strong>Traders (24%)</strong> — 120 borrowers<br>` +
+                    `&nbsp;&nbsp;Market day conflicts (Mon/Thu), cash flow gaps mid-week<br>` +
+                    `• 💼 <strong>Salaried (18%)</strong> — 90 borrowers<br>` +
+                    `&nbsp;&nbsp;Most reliable segment, 89% confirmation rate<br>` +
+                    `• 🔧 <strong>Self-Employed (12%)</strong> — 60 borrowers<br>` +
+                    `&nbsp;&nbsp;Variable income, financial stress most common decline reason<br>` +
+                    `• 🏗️ <strong>Daily Wage (8%)</strong> — 40 borrowers<br>` +
+                    `&nbsp;&nbsp;Highest risk segment, 34% are frequent decliners<br><br>` +
                     `<strong>📋 Segment-Specific Actions:</strong><br>` +
-                    `• <em>Farmers:</em> Align collection calls with harvest cycles<br>` +
-                    `• <em>Traders:</em> Avoid market days (Mon/Thu in most areas)<br>` +
-                    `• <em>Daily Wage:</em> Morning calls before they leave for work`;
+                    `• <em>Farmers:</em> Align collection calls with harvest cycles (Oct-Nov, Mar-Apr)<br>` +
+                    `• <em>Traders:</em> Call on Wed/Fri, avoid market days<br>` +
+                    `• <em>Daily Wage:</em> Morning calls before 8 AM, before they leave for work`;
             } else {
                 response = `<strong>🤖 SmaartAnalyst — Voice Intelligence</strong><br><br>` +
-                    `I can help you with:<br>` +
-                    `• 📊 <em>"Decline reasons"</em> — Why are borrowers declining?<br>` +
-                    `• 🔴 <em>"Cluster risk"</em> — Which villages need attention?<br>` +
-                    `• 🚨 <em>"Frequent decliners"</em> — Who keeps declining?<br>` +
-                    `• 📈 <em>"NPA prediction"</em> — Portfolio outlook<br>` +
-                    `• 🏢 <em>"Centre performance"</em> — Branch analysis<br>` +
-                    `• 🎯 <em>"Priority actions"</em> — What should each team do today?<br>` +
-                    `• 👥 <em>"Borrower personas"</em> — Segment analysis<br><br>` +
-                    `Try: <em>"What are the priority actions for today?"</em>`;
+                    `I analyze your Day Minus 1 call data to provide actionable insights. Ask me about:<br><br>` +
+                    `• 📊 <em>"Decline reasons"</em> — Why are borrowers declining? What patterns?<br>` +
+                    `• 🔴 <em>"Cluster risk"</em> — Which villages/centres need immediate attention?<br>` +
+                    `• 🚨 <em>"Frequent decliners"</em> — Who keeps declining? Risk scores?<br>` +
+                    `• 📈 <em>"NPA prediction"</em> — 60-day portfolio outlook, at-risk amount<br>` +
+                    `• 🏢 <em>"Warangal insights"</em> — Deep dive into specific centre<br>` +
+                    `• 🎯 <em>"Priority actions"</em> — What should each department do today?<br>` +
+                    `• 👥 <em>"Borrower personas"</em> — Segment analysis and best practices<br><br>` +
+                    `<strong>Try:</strong> <em>"What are the priority actions for today?"</em>`;
             }
             
             // Add AI response
