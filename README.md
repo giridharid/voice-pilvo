@@ -1,60 +1,41 @@
-# Fusion Voice POC - Plivo
+# Fusion Finance Voice Intelligence POC (Plivo)
 
-Pre-collection Voice AI for Microfinance. Outbound IVR with dynamic multilingual audio.
-
-## Features
-
-- Outbound calls via Plivo Voice API
-- 6 Indian languages: Hindi, Tamil, Telugu, Kannada, Marathi, English
-- DTMF input handling
-- Dynamic audio playback from URLs
-- Intelligence dashboard (mock data)
+Pre-collection call system using Plivo for outbound calls.
 
 ## Setup
 
-1. Create Plivo account at https://console.plivo.com
-2. Buy an Indian phone number
-3. Deploy to Railway
-
-## Environment Variables
-
+### Environment Variables
 ```
-PLIVO_AUTH_ID=your_auth_id
-PLIVO_AUTH_TOKEN=your_auth_token
+PLIVO_AUTH_ID=MAOWI5YJMWNZQTYJQ0OS
+PLIVO_AUTH_TOKEN=<from Plivo dashboard>
 PLIVO_PHONE_NUMBER=+918031320387
-BASE_URL=https://your-railway-app.up.railway.app
+AUDIO_BASE_URL=https://voice-poc-production.up.railway.app
 ```
 
-## Call Flow
+### Deploy to Railway
+1. Create new Railway app
+2. Connect this GitHub repo
+3. Add environment variables above
+4. Deploy
 
-1. POST `/api/call` with phone number and language
-2. Plivo initiates outbound call
-3. Customer answers → Play greeting → Gather DTMF
-4. Press 1 → Confirmed → Hangup
-5. Press 2 → Ask reason → Gather DTMF → Confirm → Hangup
+### Call Flow
+```
+POST /api/call (phone, language)
+  → Plivo outbound call with answer_url
+  → Customer answers → POST /plivo/answer
+  → Returns XML: <GetDigits><Play>01_greeting.wav</Play></GetDigits>
+  → Press 1 → POST /plivo/gather → <Play>02_confirmed.wav</Play> → Hangup
+  → Press 2 → POST /plivo/gather → <Play>03_ask_reason.wav</Play> + GetDigits
+  → Press 1-6 → POST /plivo/reason → <Play>04_reschedule_confirm.wav</Play> → Hangup
+```
 
-## Endpoints
+### Languages Supported
+- Hindi (hi-IN)
+- Telugu (te-IN)
+- Tamil (ta-IN)
+- Kannada (kn-IN)
+- Marathi (mr-IN)
+- English (en-IN)
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Demo UI |
-| `/api/call` | POST | Trigger outbound call |
-| `/plivo/answer` | POST | Plivo callback - play greeting |
-| `/plivo/gather` | POST | Plivo callback - handle DTMF |
-| `/plivo/reason` | POST | Plivo callback - handle reason |
-| `/plivo/hangup` | POST | Plivo callback - call ended |
-| `/api/intelligence` | GET | Mock analytics data |
-| `/health` | GET | Health check |
-
-## Audio Files
-
-Place WAV files (8kHz mono) in `/audio/{lang}/`:
-- `01_greeting.wav`
-- `02_confirmed.wav`
-- `03_ask_reason.wav`
-- `04_reschedule_confirm.wav`
-- `05_unclear.wav`
-
-## License
-
-Proprietary - Acquink Technologies
+### Audio Files
+Audio files are served from the existing Exotel app via `AUDIO_BASE_URL`.
