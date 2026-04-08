@@ -6,7 +6,7 @@ Real Plivo calls + Intelligence Dashboard
 Run: python main.py
 """
 
-VERSION = "1.1.0"  # 2026-04-08 22:45 IST - Play WAV + timeout="10"
+VERSION = "1.1.1"  # 2026-04-08 22:50 IST - All audio via Play WAV
 
 import os
 import json
@@ -360,48 +360,33 @@ async def plivo_gather(request: Request):
         await add_transcript(call_id, "Borrower", f"📱 DTMF Input: Pressed [{digits}]", dtmf=digits)
     
     if digits == "1":
-        # Confirmed
+        # Confirmed - play confirmation audio
         if call_id in active_calls:
             await add_transcript(call_id, "Agent", "✅ CONFIRMED: Borrower confirmed availability for tomorrow's visit")
             active_calls[call_id]["state"] = CallState.COMPLETED
             active_calls[call_id]["outcome"] = "AVAILABLE"
         
-        response = plivoxml.ResponseElement()
-        response.add(plivoxml.SpeakElement("Thank you for confirming. Your agent will visit you tomorrow. Goodbye."))
-        response.add(plivoxml.HangupElement())
-        xml = response.to_string()
+        audio_url = f"{AUDIO_BASE_URL}/audio/{lang}/02_confirmed.wav"
+        xml = f'<Response><Play>{audio_url}</Play><Hangup/></Response>'
         
     elif digits == "2":
-        # Reschedule - ask reason
+        # Reschedule - play reason menu audio
         if call_id in active_calls:
             await add_transcript(call_id, "Agent", "🔄 RESCHEDULE REQUESTED: Playing decline reason menu (1=Travel, 2=Health, 3=Financial, 4=Work, 5=Family, 6=Agriculture)")
             active_calls[call_id]["state"] = CallState.WAIT_REASON
         
-        action_url = f"{APP_BASE_URL}/plivo/reason?call_id={call_id}&lang={lang}"
-        response = plivoxml.ResponseElement()
-        response.add(
-            plivoxml.GetDigitsElement(action=action_url, method="POST", num_digits=1, timeout=10).add(
-                plivoxml.SpeakElement("Please tell us why you cannot meet tomorrow. Press 1 for travel. Press 2 for health. Press 3 for financial issues. Press 4 for work. Press 5 for family. Press 6 for agriculture.")
-            )
-        )
-        response.add(plivoxml.SpeakElement("We did not receive your input. Goodbye."))
-        response.add(plivoxml.HangupElement())
-        xml = response.to_string()
+        action_url = f"{APP_BASE_URL}/plivo/reason?call_id={call_id}&amp;lang={lang}"
+        audio_url = f"{AUDIO_BASE_URL}/audio/{lang}/03_ask_reason.wav"
+        xml = f'<Response><GetDigits action="{action_url}" numDigits="1" timeout="10"><Play>{audio_url}</Play></GetDigits><Speak>We did not receive your input. Goodbye.</Speak><Hangup/></Response>'
         
     else:
-        # Unclear - repeat
+        # Unclear - play unclear audio and repeat
         if call_id in active_calls:
             await add_transcript(call_id, "Agent", "⚠️ UNCLEAR INPUT: No valid DTMF received, repeating prompt")
         
-        action_url = f"{APP_BASE_URL}/plivo/gather?call_id={call_id}&lang={lang}"
-        response = plivoxml.ResponseElement()
-        response.add(
-            plivoxml.GetDigitsElement(action=action_url, method="POST", num_digits=1, timeout=10).add(
-                plivoxml.SpeakElement("Sorry, we did not understand. Press 1 to confirm. Press 2 to reschedule.")
-            )
-        )
-        response.add(plivoxml.HangupElement())
-        xml = response.to_string()
+        action_url = f"{APP_BASE_URL}/plivo/gather?call_id={call_id}&amp;lang={lang}"
+        audio_url = f"{AUDIO_BASE_URL}/audio/{lang}/05_unclear.wav"
+        xml = f'<Response><GetDigits action="{action_url}" numDigits="1" timeout="10"><Play>{audio_url}</Play></GetDigits><Hangup/></Response>'
     
     print(f"=== PLIVO GATHER XML ===\n{xml}")
     return Response(content=xml, media_type="application/xml")
@@ -428,10 +413,9 @@ async def plivo_reason(request: Request):
         active_calls[call_id]["outcome"] = "DECLINED"
         active_calls[call_id]["decline_reason"] = reason_info[1]
     
-    response = plivoxml.ResponseElement()
-    response.add(plivoxml.SpeakElement("Thank you. We have noted your reason. Your agent will contact you to reschedule. Goodbye."))
-    response.add(plivoxml.HangupElement())
-    xml = response.to_string()
+    # Play reschedule confirmation audio
+    audio_url = f"{AUDIO_BASE_URL}/audio/{lang}/04_reschedule_confirm.wav"
+    xml = f'<Response><Play>{audio_url}</Play><Hangup/></Response>'
     
     print(f"=== PLIVO REASON XML ===\n{xml}")
     return Response(content=xml, media_type="application/xml")
