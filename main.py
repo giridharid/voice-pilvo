@@ -6,6 +6,8 @@ Real Plivo calls + Intelligence Dashboard
 Run: python main.py
 """
 
+VERSION = "1.0.5"  # 2026-04-08 22:20 IST - GetDigits + transcript fix
+
 import os
 import json
 import asyncio
@@ -292,13 +294,18 @@ async def add_transcript(call_id: str, speaker: str, text: str, dtmf: str = None
 
 app = FastAPI(title="Fusion Finance Voice Intelligence - Plivo")
 
+@app.get("/version")
+async def get_version():
+    """Quick version check"""
+    return {"version": VERSION}
+
 @app.on_event("startup")
 async def startup():
     global APP_BASE_URL, AUDIO_BASE_URL
     APP_BASE_URL = get_base_url()
     AUDIO_BASE_URL = get_audio_base_url()
     print("=" * 60)
-    print("Fusion Finance Voice Intelligence - PLIVO")
+    print(f"Fusion Finance Voice Intelligence - PLIVO v{VERSION}")
     print(f"Callback URL: {APP_BASE_URL}")
     print(f"Audio URL: {AUDIO_BASE_URL}")
     print("=" * 60)
@@ -473,6 +480,7 @@ async def api_make_call(req: CallRequest):
 @app.get("/api/config")
 async def api_config():
     return {
+        "version": VERSION,
         "provider": "Plivo",
         "auth_id": CONFIG["PLIVO_AUTH_ID"][:8] + "..." if CONFIG["PLIVO_AUTH_ID"] else None,
         "phone_number": CONFIG["PLIVO_PHONE_NUMBER"],
@@ -645,7 +653,7 @@ HTML_PAGE = """
                     <div class="glass rounded-2xl p-6 h-[600px] flex flex-col">
                         <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">Live Transcript</h3>
                         <div id="transcript" class="flex-1 overflow-y-auto space-y-3">
-                            <div class="text-center text-gray-500 py-20">
+                            <div class="transcript-placeholder text-center text-gray-500 py-20">
                                 <div class="text-4xl mb-4">🎙️</div>
                                 <p>Make a call to see the live transcript</p>
                                 <p class="text-xs mt-2">DTMF responses and decline reasons will appear here</p>
@@ -852,16 +860,19 @@ HTML_PAGE = """
         
         function addTranscriptEntry(entry) {
             const box = document.getElementById('transcript');
-            if (box.querySelector('.text-gray-500')) box.innerHTML = '';
+            if (box.querySelector('.transcript-placeholder')) box.innerHTML = '';
             const isAgent = entry.speaker === 'Agent';
+            const isSystem = entry.speaker === 'System';
+            let msgClass = isAgent ? 'agent' : (isSystem ? 'system' : 'borrower');
+            let colorClass = isAgent ? 'text-blue-400' : (isSystem ? 'text-gray-400' : 'text-orange-400');
             let tags = '';
             if (entry.dtmf) tags += `<span class="px-2 py-0.5 rounded text-xs bg-blue-500/20 text-blue-300 ml-2">DTMF: ${entry.dtmf}</span>`;
             if (entry.reason) tags += `<span class="px-2 py-0.5 rounded text-xs bg-orange-500/20 text-orange-300 ml-2">${entry.reason}</span>`;
             box.insertAdjacentHTML('beforeend', `
-                <div class="message ${isAgent ? 'agent' : 'borrower'} rounded-xl p-4">
+                <div class="message ${msgClass} rounded-xl p-4">
                     <div class="flex justify-between items-center mb-2">
-                        <span class="font-semibold text-sm ${isAgent ? 'text-blue-400' : 'text-orange-400'}">${entry.speaker}</span>
-                        <span class="text-xs text-gray-500">${entry.timestamp}</span>
+                        <span class="font-semibold text-sm ${colorClass}">${entry.speaker}</span>
+                        <span class="text-xs text-gray-400">${entry.timestamp}</span>
                     </div>
                     <div class="text-sm">${entry.text}${tags}</div>
                 </div>
@@ -880,7 +891,7 @@ HTML_PAGE = """
             btn.textContent = '📞 Calling...';
             btn.style.opacity = '0.5';
             document.getElementById('callStatus').textContent = 'Initiating...';
-            document.getElementById('transcript').innerHTML = '<div class="text-center text-gray-500 py-10">Connecting...</div>';
+            document.getElementById('transcript').innerHTML = '<div class="transcript-placeholder text-center text-gray-500 py-10">Connecting...</div>';
             try {
                 const resp = await fetch('/api/call', {
                     method: 'POST',
@@ -908,6 +919,10 @@ HTML_PAGE = """
             const resp = await fetch('/api/config');
             const cfg = await resp.json();
             document.getElementById('configInfo').innerHTML = `
+                <div class="flex justify-between py-1 border-b border-white/5">
+                    <span class="text-gray-500">Version</span>
+                    <span class="text-purple-400 font-mono">${cfg.version}</span>
+                </div>
                 <div class="flex justify-between py-1 border-b border-white/5">
                     <span class="text-gray-500">Provider</span>
                     <span class="text-green-400">${cfg.provider}</span>
