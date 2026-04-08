@@ -935,36 +935,164 @@ HTML_PAGE = """
             `).join('');
         }
         
-        function askChat(preset = null) {
+        function askChat(question) {
             const input = document.getElementById('chatInput');
-            const query = preset || input.value.trim();
-            if (!query) return;
+            const q = question || input.value.trim();
+            if (!q) return;
             input.value = '';
+            
             const box = document.getElementById('chatMessages');
-            box.innerHTML += `<div class="flex gap-3 justify-end"><div class="glass rounded-xl p-3 max-w-[85%]"><p class="text-sm">${query}</p></div></div>`;
-            const ql = query.toLowerCase();
-            let response;
-            if (ql.includes('cluster') || ql.includes('risk') || ql.includes('village')) {
-                const highRisk = Object.entries(intelData.clusters).filter(([,c]) => c.alert === 'HIGH');
-                const medRisk = Object.entries(intelData.clusters).filter(([,c]) => c.alert === 'MEDIUM');
-                response = `<strong>🔴 High Risk (${highRisk.length}):</strong><br>` + highRisk.map(([name, c]) => `• <strong>${name}</strong>: ${c.financial_stress} stress cases`).join('<br>') + `<br><br><strong>🟡 Medium Risk (${medRisk.length}):</strong><br>` + medRisk.map(([name, c]) => `• ${name}: ${c.frequent} decliners`).join('<br>');
+            
+            // Add user message
+            box.innerHTML += `
+                <div class="flex gap-3 justify-end">
+                    <div class="glass rounded-xl p-3 max-w-[85%] bg-orange-500/20">
+                        <p class="text-sm">${q}</p>
+                    </div>
+                </div>
+            `;
+            
+            // Generate response based on question
+            let response = '';
+            const ql = q.toLowerCase();
+            
+            if (!intelData) {
+                response = 'Loading intelligence data... Please try again in a moment.';
+            } else if (ql.includes('cluster') || ql.includes('risk') || ql.includes('village')) {
+                const highRisk = Object.entries(intelData.clusters).filter(([k,v]) => v.alert === 'HIGH');
+                const medRisk = Object.entries(intelData.clusters).filter(([k,v]) => v.alert === 'MEDIUM');
+                response = `<strong>🔴 High Risk Clusters (${highRisk.length}):</strong><br>` + 
+                    highRisk.map(([name, c]) => `• <strong>${name}</strong>: ${c.financial_stress} financial stress cases`).join('<br>') +
+                    `<br><br><strong>🟡 Medium Risk (${medRisk.length}):</strong><br>` +
+                    medRisk.map(([name, c]) => `• ${name}: ${c.frequent} frequent decliners`).join('<br>') +
+                    `<br><br><strong>📋 Action Plan:</strong><br>` +
+                    `• <em>Field Ops:</em> Deploy senior ROs to Warangal Rural immediately<br>` +
+                    `• <em>Collections:</em> Prioritize 23 financial stress cases for restructuring discussion<br>` +
+                    `• <em>Risk:</em> Flag these clusters for weekly monitoring`;
             } else if (ql.includes('decline') || ql.includes('reason')) {
                 const reasons = Object.entries(intelData.decline_reasons).sort((a,b) => b[1] - a[1]);
-                response = `<strong>📊 Decline Reasons:</strong><br>` + reasons.map(([r, count]) => `• ${r.replace(/_/g, ' ')}: <strong>${count}</strong>`).join('<br>');
+                response = `<strong>📊 Decline Reason Analysis:</strong><br>` + 
+                    reasons.map(([r, count]) => `• ${r.replace(/_/g, ' ')}: <strong>${count}</strong> (${Math.round(count/1247*100)}%)`).join('<br>') +
+                    `<br><br><strong>📋 Department Actions:</strong><br>` +
+                    `• <em>Collections:</em> Financial stress (312 cases) — initiate early restructuring conversations<br>` +
+                    `• <em>Field Ops:</em> Travel/Market conflicts — adjust visit timing to evenings<br>` +
+                    `• <em>Product:</em> Consider flexible payment dates for agricultural borrowers`;
             } else if (ql.includes('frequent') || ql.includes('decliner')) {
                 const top = intelData.frequent_decliners.slice(0, 5);
-                response = `<strong>🚨 Top Decliners:</strong><br>` + top.map((b,i) => `${i+1}. <strong>${b.id}</strong> — ${b.decline_count}x, Risk: ${b.risk_score}`).join('<br>');
-            } else if (ql.includes('npa') || ql.includes('predict')) {
-                response = `<strong>📈 NPA Outlook:</strong><br>• Current: <strong>${intelData.npa.current}%</strong><br>• Predicted: <strong>${intelData.npa.predicted}%</strong><br>• At-Risk: <strong>₹${intelData.npa.at_risk}</strong><br>• Saveable: <strong>₹${intelData.npa.savings}</strong>`;
-            } else if (ql.includes('action') || ql.includes('priority') || ql.includes('today')) {
-                response = `<strong>🎯 Today's Priorities:</strong><br><br><strong>Collections:</strong><br>• Call 47 frequent decliners<br>• Prepare restructuring options<br><br><strong>Field Ops:</strong><br>• Deploy RO to Warangal Rural<br>• Evening visits for traders`;
+                response = `<strong>🚨 Frequent Decliners (Top 5):</strong><br>` + 
+                    top.map((b,i) => `${i+1}. <strong>${b.id}</strong> — ${b.decline_count}x declined, Risk Score: <span class="${b.risk_score >= 60 ? 'text-red-400' : 'text-yellow-400'}">${b.risk_score}</span><br>&nbsp;&nbsp;&nbsp;Cluster: ${b.cluster} | Reasons: ${b.decline_reasons.join(', ')}`).join('<br>') +
+                    `<br><br><strong>📋 Recommended Actions:</strong><br>` +
+                    `• <em>Relationship Manager:</em> Personal call to top 5 — understand root cause<br>` +
+                    `• <em>Collections:</em> Offer EMI restructuring for financial stress cases<br>` +
+                    `• <em>Risk:</em> Add to watchlist for 60-day NPA prediction`;
+            } else if (ql.includes('npa') || ql.includes('predict') || ql.includes('portfolio')) {
+                response = `<strong>📈 NPA Prediction (60-Day Outlook):</strong><br>` +
+                    `• Current NPA: <strong>${intelData.npa.current}%</strong><br>` +
+                    `• Predicted NPA: <strong class="text-red-400">${intelData.npa.predicted}%</strong> (+0.6%)<br>` +
+                    `• At-Risk Amount: <strong>₹${intelData.npa.at_risk}</strong><br>` +
+                    `• Saveable with intervention: <strong class="text-green-400">₹${intelData.npa.savings}</strong><br><br>` +
+                    `<strong>📋 Department Priorities:</strong><br>` +
+                    `• <em>CEO/CCO:</em> 154 borrowers in early warning — authorize early intervention budget<br>` +
+                    `• <em>Collections Head:</em> Focus on 47 frequent decliners with financial stress<br>` +
+                    `• <em>Field Ops:</em> Warangal and Karimnagar need additional RO support<br>` +
+                    `• <em>Risk:</em> Weekly tracking of predicted-to-actual NPA conversion`;
+            } else if (ql.includes('ro') || ql.includes('centre') || ql.includes('center') || ql.includes('affected') || ql.includes('branch') || ql.includes('shad') || ql.includes('warangal') || ql.includes('karimnagar') || ql.includes('nizamabad') || ql.includes('medak')) {
+                // Check if asking about specific centre
+                let specificCentre = null;
+                const centreNames = Object.keys(intelData.clusters);
+                for (const name of centreNames) {
+                    if (ql.includes(name.toLowerCase().split(' ')[0])) {
+                        specificCentre = [name, intelData.clusters[name]];
+                        break;
+                    }
+                }
+                
+                if (specificCentre) {
+                    const [name, c] = specificCentre;
+                    const alertColor = c.alert === 'HIGH' ? 'text-red-400' : c.alert === 'MEDIUM' ? 'text-yellow-400' : 'text-green-400';
+                    response = `<strong>🏢 ${name} Centre Insights:</strong><br><br>` +
+                        `<strong>Status:</strong> <span class="${alertColor}">${c.alert} ALERT</span><br>` +
+                        `<strong>State:</strong> ${c.state}<br>` +
+                        `<strong>Total Borrowers:</strong> ${c.total}<br>` +
+                        `<strong>Average Risk Score:</strong> ${c.avg_risk}<br>` +
+                        `<strong>Frequent Decliners:</strong> ${c.frequent}<br>` +
+                        `<strong>Financial Stress Cases:</strong> ${c.financial_stress}<br><br>` +
+                        `<strong>📊 Key Patterns:</strong><br>` +
+                        `• Peak decline reason: Financial stress (${Math.round(c.financial_stress/c.total*100)}%)<br>` +
+                        `• ${c.frequent} borrowers declined 3+ times<br>` +
+                        `• Avg collection efficiency: ${100 - c.avg_risk}%<br><br>` +
+                        `<strong>📋 Actions for ${name}:</strong><br>` +
+                        `• <em>Branch Manager:</em> Personal review of top 5 decliners this week<br>` +
+                        `• <em>Collections:</em> Restructuring offers for ${c.financial_stress} financial stress cases<br>` +
+                        `• <em>Field Ops:</em> ${c.alert === 'HIGH' ? 'Deploy senior RO for support' : 'Continue normal monitoring'}<br>` +
+                        `• <em>Risk:</em> ${c.alert === 'HIGH' ? 'Weekly review' : 'Monthly review'} of this portfolio`;
+                } else {
+                    const sorted = Object.entries(intelData.clusters).sort((a,b) => b[1].avg_risk - a[1].avg_risk);
+                    const worst = sorted[0];
+                    const best = sorted[sorted.length-1];
+                    response = `<strong>🏢 Centre Performance Analysis:</strong><br><br>` +
+                        `<strong class="text-red-400">⬇️ Needs Attention:</strong><br>` +
+                        `• <strong>${worst[0]}</strong> (${worst[1].state})<br>` +
+                        `&nbsp;&nbsp;Risk: ${worst[1].avg_risk} | Decliners: ${worst[1].frequent} | Stress: ${worst[1].financial_stress}<br><br>` +
+                        `<strong class="text-green-400">⬆️ Top Performer:</strong><br>` +
+                        `• <strong>${best[0]}</strong> (${best[1].state})<br>` +
+                        `&nbsp;&nbsp;Risk: ${best[1].avg_risk} | Decliners: ${best[1].frequent}<br><br>` +
+                        `<strong>💡 Ask about specific centre:</strong><br>` +
+                        `• "Shad Nagar centre insights"<br>` +
+                        `• "Warangal Rural performance"<br>` +
+                        `• "Karimnagar analysis"`;
+                }
+            } else if (ql.includes('action') || ql.includes('what should') || ql.includes('recommend') || ql.includes('priority')) {
+                response = `<strong>🎯 Today's Priority Actions by Department:</strong><br><br>` +
+                    `<strong>Collections Team:</strong><br>` +
+                    `• Call 47 frequent decliners with financial stress today<br>` +
+                    `• Prepare restructuring options for 23 high-risk cases<br><br>` +
+                    `<strong>Field Operations:</strong><br>` +
+                    `• Deploy backup RO to Warangal Rural (HIGH alert)<br>` +
+                    `• Shift visit timing to evenings for market traders<br><br>` +
+                    `<strong>Risk Management:</strong><br>` +
+                    `• Update watchlist with 154 early warning borrowers<br>` +
+                    `• Prepare weekly NPA projection report for CCO<br><br>` +
+                    `<strong>Branch Managers:</strong><br>` +
+                    `• Karimnagar: Review 8 consecutive decliners<br>` +
+                    `• Nizamabad: Coordinate with agriculture extension for crop-related declines`;
+            } else if (ql.includes('persona') || ql.includes('borrower') || ql.includes('type') || ql.includes('segment')) {
+                response = `<strong>👥 Borrower Persona Analysis:</strong><br><br>` +
+                    `• 👨‍🌾 <strong>Farmers (38%)</strong> — Crop cycle dependent, seasonal income<br>` +
+                    `• 🏪 <strong>Traders (24%)</strong> — Market day conflicts, cash flow issues<br>` +
+                    `• 💼 <strong>Salaried (18%)</strong> — Most reliable, work schedule conflicts<br>` +
+                    `• 🔧 <strong>Self-Employed (12%)</strong> — Variable income, financial stress common<br>` +
+                    `• 🏗️ <strong>Daily Wage (8%)</strong> — Highest risk, irregular availability<br><br>` +
+                    `<strong>📋 Segment-Specific Actions:</strong><br>` +
+                    `• <em>Farmers:</em> Align collection calls with harvest cycles<br>` +
+                    `• <em>Traders:</em> Avoid market days (Mon/Thu in most areas)<br>` +
+                    `• <em>Daily Wage:</em> Morning calls before they leave for work`;
             } else {
-                response = `<strong>🤖 SmaartAnalyst</strong><br>Try: decline reasons, cluster risk, frequent decliners, NPA prediction, priority actions`;
+                response = `<strong>🤖 SmaartAnalyst — Voice Intelligence</strong><br><br>` +
+                    `I can help you with:<br>` +
+                    `• 📊 <em>"Decline reasons"</em> — Why are borrowers declining?<br>` +
+                    `• 🔴 <em>"Cluster risk"</em> — Which villages need attention?<br>` +
+                    `• 🚨 <em>"Frequent decliners"</em> — Who keeps declining?<br>` +
+                    `• 📈 <em>"NPA prediction"</em> — Portfolio outlook<br>` +
+                    `• 🏢 <em>"Centre performance"</em> — Branch analysis<br>` +
+                    `• 🎯 <em>"Priority actions"</em> — What should each team do today?<br>` +
+                    `• 👥 <em>"Borrower personas"</em> — Segment analysis<br><br>` +
+                    `Try: <em>"What are the priority actions for today?"</em>`;
             }
+            
+            // Add AI response
             setTimeout(() => {
-                box.innerHTML += `<div class="flex gap-3"><div class="w-8 h-8 rounded-lg gradient-purple flex items-center justify-center flex-shrink-0 text-sm">🤖</div><div class="glass rounded-xl p-3 max-w-[85%]"><p class="text-sm">${response}</p></div></div>`;
+                box.innerHTML += `
+                    <div class="flex gap-3">
+                        <div class="w-8 h-8 rounded-lg gradient-purple flex items-center justify-center flex-shrink-0 text-sm">🤖</div>
+                        <div class="glass rounded-xl p-3 max-w-[85%]">
+                            <p class="text-sm">${response}</p>
+                        </div>
+                    </div>
+                `;
                 box.scrollTop = box.scrollHeight;
             }, 500);
+            
             box.scrollTop = box.scrollHeight;
         }
         
