@@ -42,6 +42,7 @@ def get_base_url():
     return os.getenv("BASE_URL", "http://localhost:8000")
 
 def get_audio_base_url():
+    # Default to same as app URL - we serve audio files ourselves
     return os.getenv("AUDIO_BASE_URL", get_base_url())
 
 APP_BASE_URL = get_base_url()
@@ -459,6 +460,24 @@ async def serve_logo():
         raise HTTPException(status_code=404, detail="Logo not found")
     return Response(content=logo_path.read_bytes(), media_type="image/png")
 
+@app.get("/favicon.ico")
+async def serve_favicon():
+    # Return a simple orange favicon (1x1 pixel)
+    # Or serve the logo as favicon
+    logo_path = Path(__file__).parent / "acquink_logo.png"
+    if logo_path.exists():
+        return Response(content=logo_path.read_bytes(), media_type="image/png")
+    raise HTTPException(status_code=404, detail="Favicon not found")
+
+@app.get("/audio/{lang}/{filename}")
+async def serve_audio(lang: str, filename: str):
+    """Serve audio files for Plivo playback"""
+    audio_path = Path(__file__).parent / "audio" / lang / filename
+    if not audio_path.exists():
+        print(f"Audio file not found: {audio_path}")
+        raise HTTPException(status_code=404, detail=f"Audio file not found: {lang}/{filename}")
+    return Response(content=audio_path.read_bytes(), media_type="audio/wav")
+
 
 # ============================================================================
 # Main UI - Exact same as Exotel version
@@ -479,6 +498,7 @@ HTML_PAGE = """
         
         .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
         .glass-dark { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.05); }
+        .chat-panel-bg { background: rgba(17,17,17,0.98); backdrop-filter: blur(20px); border-left: 1px solid rgba(255,255,255,0.1); }
         
         .gradient-text { background: linear-gradient(135deg, #f97316 0%, #8b5cf6 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
         .gradient-orange { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
@@ -690,7 +710,7 @@ HTML_PAGE = """
     </main>
     
     <!-- SmaartAnalyst Chat Panel -->
-    <div id="chatPanel" class="fixed right-0 top-0 h-full w-[420px] glass-dark z-50 flex flex-col transform translate-x-full transition-transform duration-300">
+    <div id="chatPanel" class="fixed right-0 top-0 h-full w-[420px] chat-panel-bg z-50 flex flex-col transform translate-x-full transition-transform duration-300">
         <div class="flex items-center justify-between p-4 border-b border-white/10">
             <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-lg gradient-purple flex items-center justify-center">🤖</div>
