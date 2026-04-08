@@ -6,7 +6,7 @@ Real Plivo calls + Intelligence Dashboard
 Run: python main.py
 """
 
-VERSION = "1.1.1"  # 2026-04-08 22:50 IST - All audio via Play WAV
+VERSION = "1.1.2"  # 2026-04-08 22:52 IST - Retry logic (2 max) + NOT_RESPONSIVE
 
 import os
 import json
@@ -352,9 +352,10 @@ async def plivo_gather(request: Request):
     
     call_id = params.get("call_id", "default")
     lang = params.get("lang", "hi-IN")
+    retry = int(params.get("retry", "0"))
     digits = form.get("Digits", "")
     
-    print(f"=== PLIVO GATHER: {call_id}, Digits: {digits} ===")
+    print(f"=== PLIVO GATHER: {call_id}, Digits: {digits}, Retry: {retry} ===")
     
     if call_id in active_calls:
         await add_transcript(call_id, "Borrower", f"📱 DTMF Input: Pressed [{digits}]", dtmf=digits)
@@ -380,13 +381,26 @@ async def plivo_gather(request: Request):
         xml = f'<Response><GetDigits action="{action_url}" numDigits="1" timeout="10"><Play>{audio_url}</Play></GetDigits><Speak>We did not receive your input. Goodbye.</Speak><Hangup/></Response>'
         
     else:
-        # Unclear - play unclear audio and repeat
-        if call_id in active_calls:
-            await add_transcript(call_id, "Agent", "⚠️ UNCLEAR INPUT: No valid DTMF received, repeating prompt")
+        # Invalid input (not 1 or 2)
+        retry += 1
         
-        action_url = f"{APP_BASE_URL}/plivo/gather?call_id={call_id}&amp;lang={lang}"
-        audio_url = f"{AUDIO_BASE_URL}/audio/{lang}/05_unclear.wav"
-        xml = f'<Response><GetDigits action="{action_url}" numDigits="1" timeout="10"><Play>{audio_url}</Play></GetDigits><Hangup/></Response>'
+        if retry >= 2:
+            # Max retries reached - hang up as not responsive
+            if call_id in active_calls:
+                await add_transcript(call_id, "Agent", "❌ NOT RESPONSIVE: Max retries reached, ending call")
+                active_calls[call_id]["state"] = CallState.COMPLETED
+                active_calls[call_id]["outcome"] = "DECLINED"
+                active_calls[call_id]["decline_reason"] = "NOT_RESPONSIVE"
+            
+            xml = f'<Response><Speak>We could not understand your response. Goodbye.</Speak><Hangup/></Response>'
+        else:
+            # Retry - play invalid message and ask again
+            if call_id in active_calls:
+                await add_transcript(call_id, "Agent", f"⚠️ INVALID INPUT: Pressed {digits}, asking to press 1 or 2 (retry {retry}/2)")
+            
+            action_url = f"{APP_BASE_URL}/plivo/gather?call_id={call_id}&amp;lang={lang}&amp;retry={retry}"
+            audio_url = f"{AUDIO_BASE_URL}/audio/{lang}/05_unclear.wav"
+            xml = f'<Response><GetDigits action="{action_url}" numDigits="1" timeout="10"><Play>{audio_url}</Play></GetDigits><Speak>We did not receive your input. Goodbye.</Speak><Hangup/></Response>'
     
     print(f"=== PLIVO GATHER XML ===\n{xml}")
     return Response(content=xml, media_type="application/xml")
