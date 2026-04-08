@@ -11,7 +11,7 @@ import json
 import asyncio
 import random
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict
 from collections import defaultdict
 
@@ -21,6 +21,9 @@ from fastapi.responses import HTMLResponse, Response, JSONResponse
 from pydantic import BaseModel
 import uvicorn
 import plivo
+
+# IST timezone (UTC+5:30)
+IST = timezone(timedelta(hours=5, minutes=30))
 
 # ============================================================================
 # Configuration
@@ -234,6 +237,25 @@ async def make_plivo_call(to_number: str, language: str = "hi-IN") -> dict:
         
         active_calls[call_id]["plivo_uuid"] = response.request_uuid
         print(f"Call initiated: {call_id}, Plivo UUID: {response.request_uuid}")
+        
+        # Add call initiation to transcript
+        lang_name = LANGUAGE_NAMES.get(language, ('Unknown', 'Unknown'))[0]
+        ist_now = datetime.now(IST)
+        active_calls[call_id]["transcript"].append({
+            "timestamp": ist_now.strftime("%H:%M:%S"),
+            "speaker": "System",
+            "text": f"📞 CALL INITIATED: Dialing {to_number} in {lang_name}...",
+            "dtmf": None,
+            "reason": None,
+        })
+        
+        # Broadcast to UI
+        for ws in ui_connections[:]:
+            try:
+                asyncio.create_task(ws.send_json({"type": "transcript", "call_id": call_id, "entry": active_calls[call_id]["transcript"][-1]}))
+            except:
+                pass
+        
         return {"success": True, "call_id": call_id}
         
     except Exception as e:
@@ -246,8 +268,10 @@ async def add_transcript(call_id: str, speaker: str, text: str, dtmf: str = None
     if call_id not in active_calls:
         return
     
+    # Use IST timezone for timestamp
+    ist_now = datetime.now(IST)
     entry = {
-        "timestamp": datetime.now().strftime("%H:%M:%S"),
+        "timestamp": ist_now.strftime("%H:%M:%S"),
         "speaker": speaker,
         "text": text,
         "dtmf": dtmf,
@@ -295,7 +319,9 @@ async def plivo_answer(request: Request):
     if call_id in active_calls:
         call = active_calls[call_id]
         lang = call.get("language", lang)
-        await add_transcript(call_id, "Agent", f"Greeting - {RO_NAMES.get(lang, 'RO')} tomorrow")
+        ro_name = RO_NAMES.get(lang, 'RO')
+        lang_name = LANGUAGE_NAMES.get(lang, ('Unknown', 'Unknown'))[0]
+        await add_transcript(call_id, "Agent", f"🔊 Playing greeting in {lang_name}: '{ro_name} will visit you tomorrow. Press 1 to confirm, 2 to reschedule.'")
         call["state"] = CallState.WAIT_AVAILABILITY
     
     audio_url = f"{AUDIO_BASE_URL}/audio/{lang}/01_greeting.wav"
@@ -327,12 +353,12 @@ async def plivo_gather(request: Request):
     print(f"=== PLIVO GATHER: {call_id}, Digits: {digits} ===")
     
     if call_id in active_calls:
-        await add_transcript(call_id, "Borrower", f"Pressed {digits}", dtmf=digits)
+        await add_transcript(call_id, "Borrower", f"📱 DTMF Input: Pressed [{digits}]", dtmf=digits)
     
     if digits == "1":
         # Confirmed
         if call_id in active_calls:
-            await add_transcript(call_id, "Agent", "Confirmed - visit tomorrow")
+            await add_transcript(call_id, "Agent", "✅ CONFIRMED: Borrower confirmed availability for tomorrow's visit")
             active_calls[call_id]["state"] = CallState.COMPLETED
             active_calls[call_id]["outcome"] = "AVAILABLE"
         
@@ -345,7 +371,7 @@ async def plivo_gather(request: Request):
     elif digits == "2":
         # Reschedule - ask reason
         if call_id in active_calls:
-            await add_transcript(call_id, "Agent", "Asking decline reason")
+            await add_transcript(call_id, "Agent", "🔄 RESCHEDULE REQUESTED: Playing decline reason menu (1=Travel, 2=Health, 3=Financial, 4=Work, 5=Family, 6=Agriculture)")
             active_calls[call_id]["state"] = CallState.WAIT_REASON
         
         action_url = f"{APP_BASE_URL}/plivo/reason?call_id={call_id}&lang={lang}"
@@ -361,7 +387,7 @@ async def plivo_gather(request: Request):
     else:
         # Unclear - repeat
         if call_id in active_calls:
-            await add_transcript(call_id, "Agent", "Unclear - repeating")
+            await add_transcript(call_id, "Agent", "⚠️ UNCLEAR INPUT: No valid DTMF received, repeating prompt")
         
         action_url = f"{APP_BASE_URL}/plivo/gather?call_id={call_id}&lang={lang}"
         xml = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -390,8 +416,8 @@ async def plivo_reason(request: Request):
     reason_info = DTMF_REASONS.get(digits, ("Other", "OTHER"))
     
     if call_id in active_calls:
-        await add_transcript(call_id, "Borrower", f"Pressed {digits}", dtmf=digits, reason=reason_info[0])
-        await add_transcript(call_id, "Agent", f"Rescheduling - reason: {reason_info[0]}")
+        await add_transcript(call_id, "Borrower", f"📱 DTMF Input: Pressed [{digits}] → Reason: {reason_info[0]}", dtmf=digits, reason=reason_info[0])
+        await add_transcript(call_id, "Agent", f"❌ DECLINED: Reason captured as '{reason_info[0]}'. RO will reschedule visit.")
         active_calls[call_id]["state"] = CallState.COMPLETED
         active_calls[call_id]["outcome"] = "DECLINED"
         active_calls[call_id]["decline_reason"] = reason_info[1]
@@ -411,6 +437,22 @@ async def plivo_hangup(request: Request):
     params = dict(request.query_params)
     call_id = params.get("call_id", "default")
     print(f"=== PLIVO HANGUP: {call_id} ===")
+    
+    # Add hangup to transcript
+    if call_id in active_calls:
+        call = active_calls[call_id]
+        outcome = call.get("outcome", "NO_RESPONSE")
+        reason = call.get("decline_reason", "")
+        
+        if outcome == "AVAILABLE":
+            msg = "📴 CALL ENDED: Borrower confirmed ✓"
+        elif outcome == "DECLINED":
+            msg = f"📴 CALL ENDED: Declined - {reason.replace('_', ' ').title()}"
+        else:
+            msg = "📴 CALL ENDED: No response received"
+        
+        await add_transcript(call_id, "System", msg)
+    
     return Response(content="OK", media_type="text/plain")
 
 
