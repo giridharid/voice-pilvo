@@ -6,7 +6,7 @@ Real Plivo calls + Intelligence Dashboard
 Run: python main.py
 """
 
-VERSION = "1.0.5"  # 2026-04-08 22:20 IST - GetDigits + transcript fix
+VERSION = "1.0.7"  # 2026-04-08 22:35 IST - FIX: & -> &amp; in XML
 
 import os
 import json
@@ -322,7 +322,7 @@ async def plivo_answer(request: Request):
     call_id = params.get("call_id", "default")
     lang = params.get("lang", "hi-IN")
     
-    print(f"=== PLIVO ANSWER: {call_id} ===")
+    print(f"=== PLIVO ANSWER v{VERSION}: {call_id} ===")
     
     if call_id in active_calls:
         call = active_calls[call_id]
@@ -332,15 +332,11 @@ async def plivo_answer(request: Request):
         await add_transcript(call_id, "Agent", f"🔊 Playing greeting in {lang_name}: '{ro_name} will visit you tomorrow. Press 1 to confirm, 2 to reschedule.'")
         call["state"] = CallState.WAIT_AVAILABILITY
     
-    action_url = f"{APP_BASE_URL}/plivo/gather?call_id={call_id}&lang={lang}"
+    # IMPORTANT: & must be &amp; in XML attributes!
+    action_url = f"{APP_BASE_URL}/plivo/gather?call_id={call_id}&amp;lang={lang}"
     
-    # SIMPLEST possible XML - exactly matching Plivo docs
-    xml = f'''<Response>
-    <GetDigits action="{action_url}" numDigits="1">
-        <Speak>Hello. Press 1 to confirm. Press 2 to reschedule.</Speak>
-    </GetDigits>
-    <Speak>No input. Goodbye.</Speak>
-</Response>'''
+    # Exact format from Plivo docs
+    xml = f'<Response><GetDigits action="{action_url}" numDigits="1"><Speak>Hello. Press 1 to confirm. Press 2 to reschedule.</Speak></GetDigits><Speak>No input received. Goodbye.</Speak></Response>'
     
     print(f"=== PLIVO XML ===\n{xml}")
     
